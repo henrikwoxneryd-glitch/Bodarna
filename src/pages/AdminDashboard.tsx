@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bolt_Database } from '../lib/Bolt Database';
+import { Bolt_Database } from '../lib/Bolt_Database';
 import { useAuth } from '../lib/auth';
 import { Booth } from '../types/database';
 
