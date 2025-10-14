@@ -63,27 +63,42 @@ export default function AdminDashboard() {
     }
   };
 
-  const loadNotifications = async () => {
-    try {
-      const { data: orders } = await Bolt_Database()
-        .from('orders')
-        .select('booth_id')
-        .eq('status', 'pending');
+type NotificationItem = {
+  booth_id: string;
+};
 
-      const { data: products } = await Bolt_Database()
-        .from('products')
-        .select('booth_id')
-        .eq('is_out_of_stock', true);
+const loadNotifications = async () => {
+  try {
+    const { data: orders, error: ordersError } = await Bolt_Database<{ booth_id: string }>()
+      .from('orders')
+      .select('booth_id')
+      .eq('status', 'pending');
 
-      const notifMap = new Map<string, number>();
+    if (ordersError) throw ordersError;
 
-      orders?.forEach(order => {
-        notifMap.set(order.booth_id, (notifMap.get(order.booth_id) || 0) + 1);
-      });
+    const { data: products, error: productsError } = await Bolt_Database<{ booth_id: string }>()
+      .from('products')
+      .select('booth_id')
+      .eq('is_out_of_stock', true);
 
-      products?.forEach(product => {
-        notifMap.set(product.booth_id, (notifMap.get(product.booth_id) || 0) + 1);
-      });
+    if (productsError) throw productsError;
+
+    const notifMap = new Map<string, number>();
+
+    orders?.forEach(order => {
+      notifMap.set(order.booth_id, (notifMap.get(order.booth_id) || 0) + 1);
+    });
+
+    products?.forEach(product => {
+      notifMap.set(product.booth_id, (notifMap.get(product.booth_id) || 0) + 1);
+    });
+
+    setNotifications(notifMap);
+  } catch (error) {
+    console.error('Error loading notifications:', error);
+  }
+};
+
 
       setNotifications(notifMap);
     } catch (error) {
