@@ -13,7 +13,7 @@ export default function BoothDetail() {
 
     const loadBooth = async () => {
       try {
-        const { data, error } = await Bolt_Database()
+        const { data, error } = await BoltDatabase()
           .from('booths')
           .select('*')
           .eq('id', boothId)
