@@ -44,6 +44,7 @@ export default function BoothStaffDashboard() {
     if (!user) return;
 
     try {
+      // Supabase-typning med <Row, Insert> för korrekt TS
       const { data, error } = await Bolt_Database()
         .from<Booth, Booth>('booths')
         .select('*')
