@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@supabase/Bolt_Database-js';
-import { Bolt ,Database } from './Bolt_Database';
+import { Bolt_Database } from './Bolt_Database';
 import { Profile } from '../types/database';
 
 type AuthContextType = {
@@ -29,24 +29,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      })();
-    });
+useEffect(() => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+
+    if (session?.user) {
+      loadProfile(session.user.id);
+    } else {
+      setProfile(null);
+      setLoading(false);
+    }
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
 
     return () => subscription.unsubscribe();
   }, []);
 
   const loadProfile = async (userId: string) => {
     try {
-      const { data, error } = await Bolt_Database
+      const { data, error } = await Bolt_Database()
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -78,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (authError) throw authError;
     if (!authData.user) throw new Error('Användare skapades inte');
 
-    const { error: profileError } = await Bolt_Database
+    const { error: profileError } = await Bolt_Database()
       .from('profiles')
       .insert([
         {
