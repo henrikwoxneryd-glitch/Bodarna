@@ -10,19 +10,19 @@ export default function BoothStaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [showCreateOrder, setShowCreateOrder] = useState<Product | null>(null);
 
-  const { user, signOut, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
   useEffect(() => {
     loadBoothData();
 
-    const productsSubscription = Bolt_Database()
+    const productsSub = Bolt_Database()
       .channel('staff-products-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        loadProducts();
+        if (booth?.id) loadProducts(booth.id);
       })
       .subscribe();
 
-    const messagesSubscription = Bolt_Database()
+    const messagesSub = Bolt_Database()
       .channel('staff-messages-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
         loadMessages();
@@ -30,125 +30,111 @@ export default function BoothStaffDashboard() {
       .subscribe();
 
     return () => {
-      productsSubscription.unsubscribe();
-      messagesSubscription.unsubscribe();
+      productsSub.unsubscribe();
+      messagesSub.unsubscribe();
     };
-  }, [user]);
+  }, [user, booth]);
 
   const loadBoothData = async () => {
     setLoading(true);
-    await Promise.all([loadBooth(), loadMessages()]);
+    await loadBooth();
     setLoading(false);
   };
 
-const loadBooth = async () => {
-  if (!user) {
-    console.warn('Ingen användare inloggad – laddar inte booth.');
-    return;
-  }
-
-  try {
-    const { data, error } = await Bolt_Database()
-      .from('booths')
-      .select('*')
-      .eq('staff_id', user.id)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    if (data) {
-      setBooth(data);
-      await loadProducts(data.id); // vänta på att produkterna laddas
-    } else {
-      console.warn('Ingen bod hittades för denna användare.');
-    }
-  } catch (error) {
-    console.error('Error loading booth:', error);
-  }
-};
-
-  const loadProducts = async (boothId?: string) => {
-    const targetBoothId = boothId || booth?.id;
-    if (!targetBoothId) return;
+  const loadBooth = async () => {
+    if (!user) return;
 
     try {
       const { data, error } = await Bolt_Database()
-        .from('products')
+        .from<Booth>('booths')
         .select('*')
-        .eq('booth_id', targetBoothId)
+        .eq('staff_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setBooth(data);
+        await loadProducts(data.id);
+        await loadMessages(data.id);
+      } else {
+        console.warn('Ingen bod hittades för denna användare.');
+      }
+    } catch (err) {
+      console.error('Error loading booth:', err);
+    }
+  };
+
+  const loadProducts = async (boothId: string) => {
+    try {
+      const { data, error } = await Bolt_Database()
+        .from<Product>('products')
+        .select('*')
+        .eq('booth_id', boothId)
         .order('name');
 
       if (error) throw error;
       setProducts(data || []);
-    } catch (error) {
-      console.error('Error loading products:', error);
+    } catch (err) {
+      console.error('Error loading products:', err);
     }
   };
 
-  const loadMessages = async () => {
-    if (!booth?.id && !user?.id) return;
+  const loadMessages = async (boothId?: string) => {
+    const id = boothId || booth?.id;
+    if (!id) return;
 
     try {
-      const { data: boothData } = await Bolt_Database()
-        .from('booths')
-        .select('id')
-        .eq('staff_id', user!.id)
-        .maybeSingle();
-
-      if (!boothData) return;
-
       const { data, error } = await Bolt_Database()
-        .from('messages')
+        .from<Message>('messages')
         .select('*')
-        .or(`to_booth_id.eq.${boothData.id},to_booth_id.is.null`)
+        .or(`to_booth_id.eq.${id},to_booth_id.is.null`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setMessages(data || []);
-    } catch (error) {
-      console.error('Error loading messages:', error);
+    } catch (err) {
+      console.error('Error loading messages:', err);
     }
   };
 
   const toggleOutOfStock = async (product: Product) => {
     try {
       const { error } = await Bolt_Database()
-        .from('products')
+        .from<Product>('products')
         .update({ is_out_of_stock: !product.is_out_of_stock })
         .eq('id', product.id);
 
       if (error) throw error;
-      loadProducts();
-    } catch (error) {
-      console.error('Error updating product:', error);
+      if (booth?.id) loadProducts(booth.id);
+    } catch (err) {
+      console.error('Error updating product:', err);
     }
   };
 
   const markMessageAsRead = async (messageId: string) => {
     try {
       const { error } = await Bolt_Database()
-        .from('messages')
+        .from<Message>('messages')
         .update({ is_read: true })
         .eq('id', messageId);
 
       if (error) throw error;
-      loadMessages();
-    } catch (error) {
-      console.error('Error marking message as read:', error);
+      if (booth?.id) loadMessages(booth.id);
+    } catch (err) {
+      console.error('Error marking message as read:', err);
     }
   };
 
   const handleSignOut = async () => {
     try {
       await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
+    } catch (err) {
+      console.error('Error signing out:', err);
     }
   };
 
-  if (loading) {
-    return <div className="loading">Laddar...</div>;
-  }
+  if (loading) return <div className="loading">Laddar...</div>;
 
   if (!booth) {
     return (
@@ -198,18 +184,10 @@ const loadBooth = async () => {
             <h3>🔔 Meddelanden ({unreadMessages.length})</h3>
             {unreadMessages.map(msg => (
               <div key={msg.id} className="notification-item unread">
-                <strong>
-                  {msg.to_booth_id ? 'Meddelande till er bod' : 'Meddelande till alla bodar'}
-                </strong>
+                <strong>{msg.to_booth_id ? 'Meddelande till er bod' : 'Meddelande till alla bodar'}</strong>
                 <p>{msg.message}</p>
-                <div className="notification-time">
-                  {new Date(msg.created_at).toLocaleString('sv-SE')}
-                </div>
-                <button
-                  className="btn btn-small"
-                  onClick={() => markMessageAsRead(msg.id)}
-                  style={{ marginTop: '8px' }}
-                >
+                <div className="notification-time">{new Date(msg.created_at).toLocaleString('sv-SE')}</div>
+                <button className="btn btn-small" onClick={() => markMessageAsRead(msg.id)} style={{ marginTop: '8px' }}>
                   Markera som Läst
                 </button>
               </div>
@@ -219,7 +197,6 @@ const loadBooth = async () => {
 
         <div className="products-section">
           <h3>Varor i Din Bod</h3>
-
           {products.length === 0 ? (
             <div className="empty-state">
               <p>Inga varor i boden ännu. Kontakta administratören.</p>
@@ -227,16 +204,11 @@ const loadBooth = async () => {
           ) : (
             <div className="products-list">
               {products.map(product => (
-                <div
-                  key={product.id}
-                  className={`product-item ${product.is_out_of_stock ? 'out-of-stock' : ''}`}
-                >
+                <div key={product.id} className={`product-item ${product.is_out_of_stock ? 'out-of-stock' : ''}`}>
                   <div className="product-info">
                     <h4>{product.name}</h4>
                     <div className="product-price">{product.price} kr</div>
-                    {product.is_out_of_stock && (
-                      <span className="status-badge pending">Slut i lager</span>
-                    )}
+                    {product.is_out_of_stock && <span className="status-badge pending">Slut i lager</span>}
                   </div>
                   <div className="product-actions">
                     <button
@@ -246,11 +218,7 @@ const loadBooth = async () => {
                     >
                       {product.is_out_of_stock ? '✅' : '⚠️'}
                     </button>
-                    <button
-                      className="icon-btn"
-                      onClick={() => setShowCreateOrder(product)}
-                      title="Beställ mer"
-                    >
+                    <button className="icon-btn" onClick={() => setShowCreateOrder(product)} title="Beställ mer">
                       🛒
                     </button>
                   </div>
@@ -261,26 +229,14 @@ const loadBooth = async () => {
         </div>
       </main>
 
-      {showCreateOrder && (
-        <CreateOrderModal
-          product={showCreateOrder}
-          boothId={booth.id}
-          onClose={() => setShowCreateOrder(null)}
-        />
-      )}
+      {showCreateOrder && <CreateOrderModal product={showCreateOrder} boothId={booth.id} onClose={() => setShowCreateOrder(null)} />}
     </div>
   );
 }
 
-function CreateOrderModal({
-  product,
-  boothId,
-  onClose
-}: {
-  product: Product;
-  boothId: string;
-  onClose: () => void;
-}) {
+/* --- MODAL --- */
+
+function CreateOrderModal({ product, boothId, onClose }: { product: Product; boothId: string; onClose: () => void }) {
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -292,23 +248,25 @@ function CreateOrderModal({
     setError('');
     setLoading(true);
 
+    if (!user) {
+      setError('Ingen användare inloggad.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await Bolt_Database()
-        .from('orders')
-        .insert([{
-          booth_id: boothId,
-          product_id: product.id,
-          quantity: parseInt(quantity),
-          notes,
-          created_by: user!.id
-        }]);
+      const { error } = await Bolt_Database().from('orders').insert([{
+        booth_id: boothId,
+        product_id: product.id,
+        quantity: parseInt(quantity),
+        notes,
+        created_by: user.id
+      }]);
 
       if (error) throw error;
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      }
+      setError(err instanceof Error ? err.message : 'Okänt fel');
     } finally {
       setLoading(false);
     }
@@ -316,35 +274,21 @@ function CreateOrderModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Beställ {product.name}</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Antal</label>
-            <input
-              type="number"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              required
-            />
+            <input type="number" min="1" value={quantity} onChange={e => setQuantity(e.target.value)} required />
           </div>
           <div className="form-group">
             <label>Kommentar (valfritt)</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="T.ex. behövs snart, brådskande..."
-            />
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="T.ex. behövs snart..." />
           </div>
           <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Avbryt
-            </button>
-            <button type="submit" className="btn" disabled={loading}>
-              {loading ? 'Beställer...' : 'Skicka Beställning'}
-            </button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Avbryt</button>
+            <button type="submit" className="btn" disabled={loading}>{loading ? 'Beställer...' : 'Skicka Beställning'}</button>
           </div>
         </form>
       </div>
