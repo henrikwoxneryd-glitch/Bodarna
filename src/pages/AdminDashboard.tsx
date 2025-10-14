@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bolt Database } from '../lib/Bolt Database';
+import { Bolt_Database } from '../lib/Bolt Database';
 import { useAuth } from '../lib/auth';
 import { Booth } from '../types/database';
 
@@ -19,21 +19,21 @@ export default function AdminDashboard() {
     loadBooths();
     loadNotifications();
 
-    const boothsSubscription = Bolt Database
+    const boothsSubscription = Bolt_Database()
       .channel('booths-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, () => {
         loadBooths();
       })
       .subscribe();
 
-    const ordersSubscription = Bolt Database
+    const ordersSubscription = Bolt_Database()
       .channel('orders-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         loadNotifications();
       })
       .subscribe();
 
-    const productsSubscription = Bolt Database
+    const productsSubscription = Bolt_Database()
       .channel('products-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
         loadNotifications();
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
 
   const loadBooths = async () => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('booths')
         .select('*')
         .order('booth_number');
@@ -65,12 +65,12 @@ export default function AdminDashboard() {
 
   const loadNotifications = async () => {
     try {
-      const { data: orders } = await Bolt Database
+      const { data: orders } = await Bolt_Database()
         .from('orders')
         .select('booth_id')
         .eq('status', 'pending');
 
-      const { data: products } = await Bolt Database
+      const { data: products } = await Bolt_Database()
         .from('products')
         .select('booth_id')
         .eq('is_out_of_stock', true);
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
     if (!confirm('Är du säker på att du vill radera denna bod? Alla varor, beställningar och meddelanden kopplade till boden kommer också att raderas.')) return;
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('booths')
         .delete()
         .eq('id', boothId);
@@ -206,7 +206,7 @@ function AddBoothModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     setLoading(true);
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('booths')
         .insert([{ booth_number: boothNumber, booth_name: boothName, description }]);
 
@@ -280,7 +280,7 @@ function EditBoothModal({ booth, onClose, onSuccess }: { booth: Booth; onClose: 
     setLoading(true);
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('booths')
         .update({ booth_number: boothNumber, booth_name: boothName, description })
         .eq('id', booth.id);
@@ -354,9 +354,9 @@ function BroadcastModal({ onClose }: { onClose: () => void }) {
     setLoading(true);
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('messages')
-        .insert([{ from_user_id: user!.id, to_booth_id: null, message }]);
+        .insert([{ from_user_id: user.id, to_booth_id: null, message }]);
 
       if (error) throw error;
       onClose();
