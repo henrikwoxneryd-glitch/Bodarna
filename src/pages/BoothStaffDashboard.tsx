@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bolt Database } from '../lib/Bolt Database';
+import { Bolt_Database } from '../lib/Bolt Database';
 import { useAuth } from '../lib/auth';
 import { Booth, Product, Message } from '../types/database';
 
@@ -15,14 +15,14 @@ export default function BoothStaffDashboard() {
   useEffect(() => {
     loadBoothData();
 
-    const productsSubscription = Bolt Database
+    const productsSubscription = Bolt_Database()
       .channel('staff-products-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
         loadProducts();
       })
       .subscribe();
 
-    const messagesSubscription = Bolt Database
+    const messagesSubscription = Bolt_Database()
       .channel('staff-messages-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
         loadMessages();
@@ -41,30 +41,38 @@ export default function BoothStaffDashboard() {
     setLoading(false);
   };
 
-  const loadBooth = async () => {
-    try {
-      const { data, error } = await Bolt Database
-        .from('booths')
-        .select('*')
-        .eq('staff_id', user!.id)
-        .maybeSingle();
+const loadBooth = async () => {
+  if (!user) {
+    console.warn('Ingen användare inloggad – laddar inte booth.');
+    return;
+  }
 
-      if (error) throw error;
-      if (data) {
-        setBooth(data);
-        loadProducts(data.id);
-      }
-    } catch (error) {
-      console.error('Error loading booth:', error);
+  try {
+    const { data, error } = await Bolt_Database()
+      .from('booths')
+      .select('*')
+      .eq('staff_id', user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (data) {
+      setBooth(data);
+      await loadProducts(data.id); // vänta på att produkterna laddas
+    } else {
+      console.warn('Ingen bod hittades för denna användare.');
     }
-  };
+  } catch (error) {
+    console.error('Error loading booth:', error);
+  }
+};
 
   const loadProducts = async (boothId?: string) => {
     const targetBoothId = boothId || booth?.id;
     if (!targetBoothId) return;
 
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('products')
         .select('*')
         .eq('booth_id', targetBoothId)
@@ -81,7 +89,7 @@ export default function BoothStaffDashboard() {
     if (!booth?.id && !user?.id) return;
 
     try {
-      const { data: boothData } = await Bolt Database
+      const { data: boothData } = await Bolt_Database()
         .from('booths')
         .select('id')
         .eq('staff_id', user!.id)
@@ -89,7 +97,7 @@ export default function BoothStaffDashboard() {
 
       if (!boothData) return;
 
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('messages')
         .select('*')
         .or(`to_booth_id.eq.${boothData.id},to_booth_id.is.null`)
@@ -104,7 +112,7 @@ export default function BoothStaffDashboard() {
 
   const toggleOutOfStock = async (product: Product) => {
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('products')
         .update({ is_out_of_stock: !product.is_out_of_stock })
         .eq('id', product.id);
@@ -118,7 +126,7 @@ export default function BoothStaffDashboard() {
 
   const markMessageAsRead = async (messageId: string) => {
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('messages')
         .update({ is_read: true })
         .eq('id', messageId);
@@ -285,7 +293,7 @@ function CreateOrderModal({
     setLoading(true);
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('orders')
         .insert([{
           booth_id: boothId,
