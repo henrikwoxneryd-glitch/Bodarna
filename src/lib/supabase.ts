@@ -7,4 +7,4 @@ if (!Bolt_DatabaseUrl || !Bolt_DatabaseAnonKey) {
   throw new Error('Missing Bolt Database environment variables');
 }
 
-export const Bolt Database = createClient(Bolt_DatabaseUrl, Bolt_DatabaseAnonKey);
+export const Bolt_Database = createClient(Bolt_DatabaseUrl, Bolt_DatabaseAnonKey);
