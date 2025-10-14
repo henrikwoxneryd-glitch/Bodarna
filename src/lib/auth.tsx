@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/Bolt_Database-js';
-import { Bolt_Database } from './Bolt_Database';
+import { User } from '@supabase/supabase-js';
+import { Bolt_Database } from '../lib/Bolt_Database';
 import { Profile } from '../types/database';
 
 type AuthContextType = {
@@ -8,7 +8,12 @@ type AuthContextType = {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, role: 'admin' | 'booth_staff') => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role: 'admin' | 'booth_staff'
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -19,100 +24,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔹 Hämta Supabase-klienten
+  const supabase = Bolt_Database();
+
+  // 🔹 Kontrollera session vid sidladdning
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const getSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+
+      const session = data.session;
       setUser(session?.user ?? null);
+
       if (session?.user) {
-        loadProfile(session.user.id);
+        await loadProfile(session.user.id);
       } else {
         setLoading(false);
       }
-    });
+    };
 
-useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    setUser(session?.user ?? null);
+    getSession();
 
-    if (session?.user) {
-      loadProfile(session.user.id);
-    } else {
-      setProfile(null);
-      setLoading(false);
-    }
-  });
+    // 🔹 Lyssna på förändringar i auth-status
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null);
 
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []);
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await Bolt_Database()
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-  };
-
-  const signUp = async (email: string, password: string, fullName: string, role: 'admin' | 'booth_staff') => {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('Användare skapades inte');
-
-    const { error: profileError } = await Bolt_Database()
-      .from('profiles')
-      .insert([
-        {
-          id: authData.user.id,
-          email,
-          role,
-          full_name: fullName,
-        },
-      ]);
-
-    if (profileError) throw profileError;
-  };
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+      if (session?.user
