@@ -21,17 +21,17 @@ export default function AdminDashboard() {
     loadBooths();
     loadNotifications();
 
-    const boothsSub = Bolt_Database()
+    const boothsSub = BoltDatabase()
       .channel('booths-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, loadBooths)
       .subscribe();
 
-    const ordersSub = Bolt_Database()
+    const ordersSub = BoltDatabase()
       .channel('orders-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, loadNotifications)
       .subscribe();
 
-    const productsSub = Bolt_Database()
+    const productsSub = BoltDatabase()
       .channel('products-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, loadNotifications)
       .subscribe();
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
 
   const loadBooths = async () => {
     try {
-      const { data, error } = await Bolt_Database().from('booths').select('*').order('booth_number');
+      const { data, error } = await BoltDatabase().from('booths').select('*').order('booth_number');
       if (error) throw error;
       setBooths(data || []);
     } catch (err) {
@@ -57,8 +57,8 @@ export default function AdminDashboard() {
 
   const loadNotifications = async () => {
     try {
-      const ordersResult = await Bolt_Database().from('orders').select('booth_id').eq('status', 'pending');
-      const productsResult = await Bolt_Database().from('products').select('booth_id').eq('is_out_of_stock', true);
+      const ordersResult = await BoltDatabase().from('orders').select('booth_id').eq('status', 'pending');
+      const productsResult = await BoltDatabase().from('products').select('booth_id').eq('is_out_of_stock', true);
 
       const notifMap = new Map<string, number>();
 
@@ -89,7 +89,7 @@ export default function AdminDashboard() {
     if (!confirm('Är du säker på att du vill radera denna bod?')) return;
 
     try {
-      const { error } = await Bolt_Database().from('booths').delete().eq('id', boothId);
+      const { error } = await BoltDatabase().from('booths').delete().eq('id', boothId);
       if (error) throw error;
       loadBooths();
     } catch (err) {
@@ -175,7 +175,7 @@ function AddBoothModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     setError('');
     setLoading(true);
     try {
-      const { error } = await Bolt_Database().from('booths').insert([{ booth_number: boothNumber, booth_name: boothName, description }]);
+      const { error } = await BoltDatabase().from('booths').insert([{ booth_number: boothNumber, booth_name: boothName, description }]);
       if (error) throw error;
       onSuccess();
       onClose();
@@ -226,7 +226,7 @@ function EditBoothModal({ booth, onClose, onSuccess }: { booth: Booth; onClose: 
     setError('');
     setLoading(true);
     try {
-      const { error } = await Bolt_Database().from('booths').update({ booth_number: boothNumber, booth_name: boothName, description }).eq('id', booth.id);
+      const { error } = await BoltDatabase().from('booths').update({ booth_number: boothNumber, booth_name: boothName, description }).eq('id', booth.id);
       if (error) throw error;
       onSuccess();
       onClose();
@@ -283,7 +283,7 @@ function BroadcastModal({ onClose }: { onClose: () => void }) {
     }
 
     try {
-      const { error } = await Bolt_Database().from('messages').insert([{ from_user_id: user.id, to_booth_id: null, message }]);
+      const { error } = await BoltDatabase().from('messages').insert([{ from_user_id: user.id, to_booth_id: null, message }]);
       if (error) throw error;
       onClose();
     } catch (err: unknown) {
