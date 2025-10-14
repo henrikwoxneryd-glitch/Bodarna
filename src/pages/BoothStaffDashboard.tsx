@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bolt_Database } from '../lib/Bolt_Database';
+import { Bolt Database } from '../lib/Bolt Database';
 import { useAuth } from '../lib/auth';
 import { Booth, Product, Message } from '../types/database';
 
@@ -14,21 +14,25 @@ export default function BoothStaffDashboard() {
   useEffect(() => {
     loadBoothData();
 
-    const productsSub = Bolt_Database()
+    const productsSub = Bolt Database
       .channel('staff-products-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
-        () => { if (booth?.id) loadProducts(booth.id); }
+        () => {
+          if (booth?.id) loadProducts(booth.id);
+        }
       )
       .subscribe();
 
-    const messagesSub = Bolt_Database()
+    const messagesSub = Bolt Database
       .channel('staff-messages-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
-        () => { if (booth?.id) loadMessages(booth.id); }
+        () => {
+          if (booth?.id) loadMessages(booth.id);
+        }
       )
       .subscribe();
 
@@ -48,8 +52,8 @@ export default function BoothStaffDashboard() {
     if (!user) return;
 
     try {
-      const { data, error } = await Bolt_Database()
-        .from<Booth, Booth>('booths')
+      const { data, error } = await Bolt Database
+        .from('booths')
         .select('*')
         .eq('staff_id', user.id)
         .maybeSingle();
@@ -70,8 +74,8 @@ export default function BoothStaffDashboard() {
 
   const loadProducts = async (boothId: string) => {
     try {
-      const { data, error } = await Bolt_Database()
-        .from<Product, Product>('products')
+      const { data, error } = await Bolt Database
+        .from('products')
         .select('*')
         .eq('booth_id', boothId)
         .order('name');
@@ -88,8 +92,8 @@ export default function BoothStaffDashboard() {
     if (!id) return;
 
     try {
-      const { data, error } = await Bolt_Database()
-        .from<Message, Message>('messages')
+      const { data, error } = await Bolt Database
+        .from('messages')
         .select('*')
         .or(`to_booth_id.eq.${id},to_booth_id.is.null`)
         .order('created_at', { ascending: false });
@@ -103,8 +107,8 @@ export default function BoothStaffDashboard() {
 
   const toggleOutOfStock = async (product: Product) => {
     try {
-      const { error } = await Bolt_Database()
-        .from<Product, Product>('products')
+      const { error } = await Bolt Database
+        .from('products')
         .update({ is_out_of_stock: !product.is_out_of_stock })
         .eq('id', product.id);
 
@@ -117,8 +121,8 @@ export default function BoothStaffDashboard() {
 
   const markMessageAsRead = async (messageId: string) => {
     try {
-      const { error } = await Bolt_Database()
-        .from<Message, Message>('messages')
+      const { error } = await Bolt Database
+        .from('messages')
         .update({ is_read: true })
         .eq('id', messageId);
 
