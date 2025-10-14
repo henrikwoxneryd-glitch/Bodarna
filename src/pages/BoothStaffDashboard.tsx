@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bolt Database } from '../lib/Bolt Database';
+import { BoltDatabase } from '../lib/BoltDatabase'; // ✅ Korrigerad import
 import { useAuth } from '../lib/auth';
 import { Booth, Product, Message } from '../types/database';
 
@@ -12,20 +12,30 @@ export default function BoothStaffDashboard() {
   const { user, profile, signOut } = useAuth();
 
   useEffect(() => {
-    loadBoothData();
+    if (user) {
+      loadBoothData();
+    }
 
-    const productsSub = Bolt Database
+    const productsSub = BoltDatabase
       .channel('staff-products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        if (booth?.id) loadProducts(booth.id);
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          if (booth?.id) loadProducts(booth.id);
+        }
+      )
       .subscribe();
 
-    const messagesSub = Bolt Database
+    const messagesSub = BoltDatabase
       .channel('staff-messages-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-        if (booth?.id) loadMessages(booth.id);
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        () => {
+          if (booth?.id) loadMessages(booth.id);
+        }
+      )
       .subscribe();
 
     return () => {
@@ -44,7 +54,7 @@ export default function BoothStaffDashboard() {
     if (!user) return;
 
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await BoltDatabase
         .from('booths')
         .select('*')
         .eq('staff_id', user.id)
@@ -66,7 +76,7 @@ export default function BoothStaffDashboard() {
 
   const loadProducts = async (boothId: string) => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await BoltDatabase
         .from('products')
         .select('*')
         .eq('booth_id', boothId)
@@ -84,7 +94,7 @@ export default function BoothStaffDashboard() {
     if (!id) return;
 
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await BoltDatabase
         .from('messages')
         .select('*')
         .or(`to_booth_id.eq.${id},to_booth_id.is.null`)
@@ -99,7 +109,7 @@ export default function BoothStaffDashboard() {
 
   const toggleOutOfStock = async (product: Product) => {
     try {
-      const { error } = await Bolt Database
+      const { error } = await BoltDatabase
         .from('products')
         .update({ is_out_of_stock: !product.is_out_of_stock })
         .eq('id', product.id);
@@ -113,7 +123,7 @@ export default function BoothStaffDashboard() {
 
   const markMessageAsRead = async (messageId: string) => {
     try {
-      const { error } = await Bolt Database
+      const { error } = await BoltDatabase
         .from('messages')
         .update({ is_read: true })
         .eq('id', messageId);
@@ -185,7 +195,9 @@ export default function BoothStaffDashboard() {
               <div key={msg.id} className="notification-item unread">
                 <strong>{msg.to_booth_id ? 'Meddelande till er bod' : 'Meddelande till alla bodar'}</strong>
                 <p>{msg.message}</p>
-                <div className="notification-time">{new Date(msg.created_at).toLocaleString('sv-SE')}</div>
+                <div className="notification-time">
+                  {new Date(msg.created_at).toLocaleString('sv-SE')}
+                </div>
                 <button
                   className="btn btn-small"
                   onClick={() => markMessageAsRead(msg.id)}
@@ -207,17 +219,26 @@ export default function BoothStaffDashboard() {
           ) : (
             <div className="products-list">
               {products.map(product => (
-                <div key={product.id} className={`product-item ${product.is_out_of_stock ? 'out-of-stock' : ''}`}>
+                <div
+                  key={product.id}
+                  className={`product-item ${product.is_out_of_stock ? 'out-of-stock' : ''}`}
+                >
                   <div className="product-info">
                     <h4>{product.name}</h4>
                     <div className="product-price">{product.price} kr</div>
-                    {product.is_out_of_stock && <span className="status-badge pending">Slut i lager</span>}
+                    {product.is_out_of_stock && (
+                      <span className="status-badge pending">Slut i lager</span>
+                    )}
                   </div>
                   <div className="product-actions">
                     <button
                       className={`icon-btn ${product.is_out_of_stock ? 'success' : 'warning'}`}
                       onClick={() => toggleOutOfStock(product)}
-                      title={product.is_out_of_stock ? 'Markera som i lager' : 'Markera som slut'}
+                      title={
+                        product.is_out_of_stock
+                          ? 'Markera som i lager'
+                          : 'Markera som slut'
+                      }
                     >
                       {product.is_out_of_stock ? '✅' : '⚠️'}
                     </button>
