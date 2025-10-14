@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bolt_Database } from '../lib/Bolt_Database';
+import { Bolt_Database } from '../lib/BoltDatabase';
 import { Booth } from '../types/database';
 
 export default function BoothDetail() {
