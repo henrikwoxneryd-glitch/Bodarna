@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bolt_Database } from '../lib/Bolt_Database';
 import { useAuth } from '../lib/auth';
 import { Booth } from '../types/database';
 
-// ---------- Huvudkomponent ----------
-export function AdminDashboard() {
+type NotificationItem = { booth_id: string };
+
+export default function AdminDashboard() {
   const [booths, setBooths] = useState<Booth[]>([]);
   const [notifications, setNotifications] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -20,25 +21,25 @@ export function AdminDashboard() {
     loadBooths();
     loadNotifications();
 
-    const boothsSubscription = Bolt_Database()
+    const boothsSub = Bolt_Database()
       .channel('booths-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, loadBooths)
       .subscribe();
 
-    const ordersSubscription = Bolt_Database()
+    const ordersSub = Bolt_Database()
       .channel('orders-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, loadNotifications)
       .subscribe();
 
-    const productsSubscription = Bolt_Database()
+    const productsSub = Bolt_Database()
       .channel('products-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, loadNotifications)
       .subscribe();
 
     return () => {
-      boothsSubscription.unsubscribe();
-      ordersSubscription.unsubscribe();
-      productsSubscription.unsubscribe();
+      boothsSub.unsubscribe();
+      ordersSub.unsubscribe();
+      productsSub.unsubscribe();
     };
   }, []);
 
@@ -56,21 +57,17 @@ export function AdminDashboard() {
 
   const loadNotifications = async () => {
     try {
-      const { data: orders, error: ordersError } = await Bolt_Database()
-  .from<{ booth_id: string }, { booth_id: string }>('orders')
-  .select('booth_id')
-  .eq('status', 'pending');
-      if (ordersError) throw ordersError;
+      const ordersResult = await Bolt_Database().from('orders').select('booth_id').eq('status', 'pending');
+      if (ordersResult.error) throw ordersResult.error;
+      const orders = ordersResult.data as NotificationItem[];
 
-      const { data: products, error: productsError } = await Bolt_Database()
-  .from<{ booth_id: string }, { booth_id: string }>('products')
-  .select('booth_id')
-  .eq('is_out_of_stock', true);
-      if (productsError) throw productsError;
+      const productsResult = await Bolt_Database().from('products').select('booth_id').eq('is_out_of_stock', true);
+      if (productsResult.error) throw productsResult.error;
+      const products = productsResult.data as NotificationItem[];
 
       const notifMap = new Map<string, number>();
-      orders?.forEach((o) => notifMap.set(o.booth_id, (notifMap.get(o.booth_id) || 0) + 1));
-      products?.forEach((p) => notifMap.set(p.booth_id, (notifMap.get(p.booth_id) || 0) + 1));
+      orders.forEach(o => notifMap.set(o.booth_id, (notifMap.get(o.booth_id) || 0) + 1));
+      products.forEach(p => notifMap.set(p.booth_id, (notifMap.get(p.booth_id) || 0) + 1));
 
       setNotifications(notifMap);
     } catch (err) {
@@ -84,6 +81,25 @@ export function AdminDashboard() {
     } catch (err) {
       console.error('Error signing out:', err);
     }
+  };
+
+  const deleteBooth = async (boothId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Är du säker på att du vill radera denna bod?')) return;
+
+    try {
+      const { error } = await Bolt_Database().from('booths').delete().eq('id', boothId);
+      if (error) throw error;
+      loadBooths();
+    } catch (err) {
+      console.error('Error deleting booth:', err);
+      alert('Ett fel uppstod vid radering av bod');
+    }
+  };
+
+  const handleEditBooth = (booth: Booth, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowEditBooth(booth);
   };
 
   if (loading) return <div className="loading">Laddar...</div>;
@@ -103,24 +119,25 @@ export function AdminDashboard() {
       </header>
 
       <main className="main-content">
-        <h2 style={{ color: 'var(--christmas-red)', marginBottom: '20px' }}>Alla Bodar ({booths.length})</h2>
+        <h2 style={{ color: 'var(--christmas-red)', marginBottom: '20px' }}>
+          Alla Bodar ({booths.length})
+        </h2>
 
         {booths.length === 0 ? (
-          <div className="empty-state">
-            <p>Inga bodar än. Lägg till din första bod!</p>
-          </div>
+          <div className="empty-state">Inga bodar än. Lägg till din första bod!</div>
         ) : (
           <div className="booths-grid">
-            {booths.map((booth) => (
-              <div key={booth.id} className="booth-card">
-                {notifications.get(booth.id) && <div className="notification-badge">{notifications.get(booth.id)}</div>}
-                <div className="booth-card-clickable" onClick={() => navigate(`/booth/${booth.id}`)} style={{ cursor: 'pointer' }}>
-                  <h3>{booth.booth_name}</h3>
-                  <span className="booth-number">Bod #{booth.booth_number}</span>
-                  <p>{booth.description}</p>
+            {booths.map(b => (
+              <div key={b.id} className="booth-card">
+                {notifications.get(b.id) && <div className="notification-badge">{notifications.get(b.id)}</div>}
+                <div className="booth-card-clickable" onClick={() => navigate(`/booth/${b.id}`)} style={{ cursor: 'pointer' }}>
+                  <h3>{b.booth_name}</h3>
+                  <span className="booth-number">Bod #{b.booth_number}</span>
+                  <p>{b.description}</p>
                 </div>
                 <div className="booth-card-actions">
-                  <button className="btn btn-small" onClick={() => setShowEditBooth(booth)}>Redigera</button>
+                  <button className="btn btn-small" onClick={e => handleEditBooth(b, e)}>Redigera</button>
+                  <button className="btn btn-small btn-secondary" onClick={e => deleteBooth(b.id, e)} style={{ background: '#c33' }}>Radera</button>
                 </div>
               </div>
             ))}
@@ -130,12 +147,13 @@ export function AdminDashboard() {
 
       {showAddBooth && <AddBoothModal onClose={() => setShowAddBooth(false)} onSuccess={loadBooths} />}
       {showEditBooth && <EditBoothModal booth={showEditBooth} onClose={() => setShowEditBooth(null)} onSuccess={loadBooths} />}
-      {showBroadcast && user && <BroadcastModal onClose={() => setShowBroadcast(false)} user={user} />}
+      {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} />}
     </div>
   );
 }
 
-// ---------- Modaler ----------
+/* --- MODALS --- */
+
 function AddBoothModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [boothNumber, setBoothNumber] = useState('');
   const [boothName, setBoothName] = useState('');
@@ -147,16 +165,13 @@ function AddBoothModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      const { error } = await Bolt_Database()
-        .from('booths')
-        .insert([{ booth_number: boothNumber, booth_name: boothName, description }]);
+      const { error } = await Bolt_Database().from('booths').insert([{ booth_number: boothNumber, booth_name: boothName, description }]);
       if (error) throw error;
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      setError(err instanceof Error ? err.message : 'Okänt fel');
     } finally {
       setLoading(false);
     }
@@ -164,21 +179,21 @@ function AddBoothModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Lägg till Ny Bod</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Bodnummer</label>
-            <input type="text" value={boothNumber} onChange={(e) => setBoothNumber(e.target.value)} required />
+            <input type="text" value={boothNumber} onChange={e => setBoothNumber(e.target.value)} required />
           </div>
           <div className="form-group">
             <label>Bodnamn</label>
-            <input type="text" value={boothName} onChange={(e) => setBoothName(e.target.value)} required />
+            <input type="text" value={boothName} onChange={e => setBoothName(e.target.value)} required />
           </div>
           <div className="form-group">
             <label>Beskrivning</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+            <textarea value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Avbryt</button>
@@ -201,17 +216,13 @@ function EditBoothModal({ booth, onClose, onSuccess }: { booth: Booth; onClose: 
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      const { error } = await Bolt_Database()
-        .from('booths')
-        .update({ booth_number: boothNumber, booth_name: boothName, description })
-        .eq('id', booth.id);
+      const { error } = await Bolt_Database().from('booths').update({ booth_number: boothNumber, booth_name: boothName, description }).eq('id', booth.id);
       if (error) throw error;
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
+      setError(err instanceof Error ? err.message : 'Okänt fel');
     } finally {
       setLoading(false);
     }
@@ -219,21 +230,21 @@ function EditBoothModal({ booth, onClose, onSuccess }: { booth: Booth; onClose: 
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Redigera Bod</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Bodnummer</label>
-            <input type="text" value={boothNumber} onChange={(e) => setBoothNumber(e.target.value)} required />
+            <input type="text" value={boothNumber} onChange={e => setBoothNumber(e.target.value)} required />
           </div>
           <div className="form-group">
             <label>Bodnamn</label>
-            <input type="text" value={boothName} onChange={(e) => setBoothName(e.target.value)} required />
+            <input type="text" value={boothName} onChange={e => setBoothName(e.target.value)} required />
           </div>
           <div className="form-group">
             <label>Beskrivning</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+            <textarea value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Avbryt</button>
@@ -245,25 +256,29 @@ function EditBoothModal({ booth, onClose, onSuccess }: { booth: Booth; onClose: 
   );
 }
 
-function BroadcastModal({ onClose, user }: { onClose: () => void; user: any }) {
+function BroadcastModal({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    if (!user) {
+      setError('Ingen användare inloggad.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await Bolt_Database()
-        .from('messages')
-        .insert([{ from_user_id: user.id, to_booth_id: null, message }]);
+      const { error } = await Bolt_Database().from('messages').insert([{ from_user_id: user.id, to_booth_id: null, message }]);
       if (error) throw error;
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError('Ett okänt fel uppstod.');
+      setError(err instanceof Error ? err.message : 'Okänt fel');
     } finally {
       setLoading(false);
     }
@@ -271,13 +286,13 @@ function BroadcastModal({ onClose, user }: { onClose: () => void; user: any }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Skicka Meddelande till Alla Bodar</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Meddelande</label>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} required />
+            <textarea value={message} onChange={e => setMessage(e.target.value)} required />
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Avbryt</button>
