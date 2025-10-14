@@ -364,25 +364,34 @@ function BroadcastModal({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const { error } = await Bolt_Database()
-        .from('messages')
-        .insert([{ from_user_id: user.id, to_booth_id: null, message }]);
+  if (!user) {
+    setError('Ingen användare inloggad.');
+    setLoading(false);
+    return;
+  }
 
-      if (error) throw error;
-      onClose();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      }
-    } finally {
-      setLoading(false);
+  try {
+    const { error } = await Bolt_Database<{ from_user_id: string; to_booth_id: string | null; message: string }>()
+      .from('messages')
+      .insert([{ from_user_id: user.id, to_booth_id: null, message }]);
+
+    if (error) throw error;
+    onClose();
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      setError(err.message);
+    } else {
+      setError('Ett okänt fel uppstod.');
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="modal-overlay" onClick={onClose}>
