@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
-import { Bolt_Database } from '../lib/Bolt_Database';
+import { Bolt_Database } from '../lib/BoltDatabase';
 import { Profile } from '../types/database';
 
 type AuthContextType = {
