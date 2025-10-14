@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bolt Database } from '../lib/Bolt Database';
+import { Bolt_Database } from '../lib/Bolt Database';
 import { useAuth } from '../lib/auth';
 import { Booth } from '../types/database';
 
@@ -21,21 +21,21 @@ export default function AdminDashboard() {
     loadBooths();
     loadNotifications();
 
-    const boothsSub = Bolt Database
+    const boothsSub = Bolt_Database()
       .channel('booths-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, () => {
         loadBooths();
       })
       .subscribe();
 
-    const ordersSub = Bolt Database
+    const ordersSub = Bolt_Database()
       .channel('orders-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         loadNotifications();
       })
       .subscribe();
 
-    const productsSub = Bolt Database
+    const productsSub = Bolt_Database()
       .channel('products-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
         loadNotifications();
