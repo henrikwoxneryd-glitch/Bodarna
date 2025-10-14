@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { BoltDatabase } from '../lib/BoltDatabase';
+import { Bolt_Database } from '../lib/BoltDatabase';
 import { Booth } from '../types/database';
 
 export default function BoothDetail() {
@@ -13,7 +13,7 @@ export default function BoothDetail() {
 
     const loadBooth = async () => {
       try {
-        const { data, error } = await BoltDatabase()
+        const { data, error } = await Bolt_Database()
           .from('booths')
           .select('*')
           .eq('id', boothId)
