@@ -56,16 +56,16 @@ export function AdminDashboard() {
 
   const loadNotifications = async () => {
     try {
-      const { data: orders, error: ordersError } = await Bolt_Database<{ booth_id: string }>()
-        .from('orders')
-        .select('booth_id')
-        .eq('status', 'pending');
+      const { data: orders, error: ordersError } = await Bolt_Database()
+  .from<{ booth_id: string }>('orders')
+  .select('booth_id')
+  .eq('status', 'pending');
       if (ordersError) throw ordersError;
 
-      const { data: products, error: productsError } = await Bolt_Database<{ booth_id: string }>()
-        .from('products')
-        .select('booth_id')
-        .eq('is_out_of_stock', true);
+      const { data: products, error: productsError } = await Bolt_Database()
+  .from<{ booth_id: string }>('products')
+  .select('booth_id')
+  .eq('is_out_of_stock', true);
       if (productsError) throw productsError;
 
       const notifMap = new Map<string, number>();
