@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import Login from './pages/Login';
-import { AdminDashboard } from './pages/AdminDashboard'; // <-- ändrad import
+import AdminDashboard from './pages/AdminDashboard'; // <-- ändrad import
 import BoothDetail from './pages/BoothDetail';
 import BoothStaffDashboard from './pages/BoothStaffDashboard';
 import './App.css';
