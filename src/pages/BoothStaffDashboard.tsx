@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BoltDatabase } from '../lib/BoltDatabase'; // ✅ Korrigerad import
+import { Bolt_Database } from '../lib/BoltDatabase'; // ✅ Korrigerad import
 import { useAuth } from '../lib/auth';
 import { Booth, Product, Message } from '../types/database';
 
