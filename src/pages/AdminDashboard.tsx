@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bolt_Database } from '../lib/Bolt Database';
+import { Bolt_Database } from '../lib/Bolt_Database';
 import { useAuth } from '../lib/auth';
 import { Booth } from '../types/database';
 
@@ -23,23 +23,17 @@ export default function AdminDashboard() {
 
     const boothsSub = Bolt_Database()
       .channel('booths-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, () => {
-        loadBooths();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, loadBooths)
       .subscribe();
 
     const ordersSub = Bolt_Database()
       .channel('orders-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        loadNotifications();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, loadNotifications)
       .subscribe();
 
     const productsSub = Bolt_Database()
       .channel('products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        loadNotifications();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, loadNotifications)
       .subscribe();
 
     return () => {
@@ -51,7 +45,11 @@ export default function AdminDashboard() {
 
   const loadBooths = async () => {
     try {
-      const { data, error } = await supabase.from('booths').select('*').order('booth_number');
+      const { data, error } = await Bolt_Database<Booth>()
+        .from('booths')
+        .select('*')
+        .order('booth_number');
+
       if (error) throw error;
       setBooths(data || []);
     } catch (err) {
@@ -63,17 +61,24 @@ export default function AdminDashboard() {
 
   const loadNotifications = async () => {
     try {
-      const ordersResult = await supabase.from('orders').select('booth_id').eq('status', 'pending');
-      if (ordersResult.error) throw ordersResult.error;
-      const orders = ordersResult.data as NotificationItem[];
+      const ordersResult = await Bolt_Database<NotificationItem>()
+        .from('orders')
+        .select('booth_id')
+        .eq('status', 'pending');
 
-      const productsResult = await supabase.from('products').select('booth_id').eq('is_out_of_stock', true);
-      if (productsResult.error) throw productsResult.error;
-      const products = productsResult.data as NotificationItem[];
+      const productsResult = await Bolt_Database<NotificationItem>()
+        .from('products')
+        .select('booth_id')
+        .eq('is_out_of_stock', true);
 
       const notifMap = new Map<string, number>();
-      orders.forEach(o => notifMap.set(o.booth_id, (notifMap.get(o.booth_id) || 0) + 1));
-      products.forEach(p => notifMap.set(p.booth_id, (notifMap.get(p.booth_id) || 0) + 1));
+
+      (ordersResult.data || []).forEach(o =>
+        notifMap.set(o.booth_id, (notifMap.get(o.booth_id) || 0) + 1)
+      );
+      (productsResult.data || []).forEach(p =>
+        notifMap.set(p.booth_id, (notifMap.get(p.booth_id) || 0) + 1)
+      );
 
       setNotifications(notifMap);
     } catch (err) {
@@ -94,7 +99,11 @@ export default function AdminDashboard() {
     if (!confirm('Är du säker på att du vill radera denna bod?')) return;
 
     try {
-      const { error } = await supabase.from('booths').delete().eq('id', boothId);
+      const { error } = await Bolt_Database()
+        .from('booths')
+        .delete()
+        .eq('id', boothId);
+
       if (error) throw error;
       loadBooths();
     } catch (err) {
@@ -136,14 +145,24 @@ export default function AdminDashboard() {
             {booths.map(b => (
               <div key={b.id} className="booth-card">
                 {notifications.get(b.id) && <div className="notification-badge">{notifications.get(b.id)}</div>}
-                <div className="booth-card-clickable" onClick={() => navigate(`/booth/${b.id}`)} style={{ cursor: 'pointer' }}>
+                <div
+                  className="booth-card-clickable"
+                  onClick={() => navigate(`/booth/${b.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <h3>{b.booth_name}</h3>
                   <span className="booth-number">Bod #{b.booth_number}</span>
                   <p>{b.description}</p>
                 </div>
                 <div className="booth-card-actions">
                   <button className="btn btn-small" onClick={e => handleEditBooth(b, e)}>Redigera</button>
-                  <button className="btn btn-small btn-secondary" onClick={e => deleteBooth(b.id, e)} style={{ background: '#c33' }}>Radera</button>
+                  <button
+                    className="btn btn-small btn-secondary"
+                    onClick={e => deleteBooth(b.id, e)}
+                    style={{ background: '#c33' }}
+                  >
+                    Radera
+                  </button>
                 </div>
               </div>
             ))}
@@ -158,6 +177,8 @@ export default function AdminDashboard() {
   );
 }
 
+// ------------------- Modals -------------------
+
 function AddBoothModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [boothNumber, setBoothNumber] = useState('');
   const [boothName, setBoothName] = useState('');
@@ -169,9 +190,13 @@ function AddBoothModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
-      const { error } = await supabase.from('booths').insert([{ booth_number: boothNumber, booth_name: boothName, description }]);
+      const { error } = await Bolt_Database()
+        .from('booths')
+        .insert([{ booth_number: boothNumber, booth_name: boothName, description }]);
       if (error) throw error;
+
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -220,9 +245,14 @@ function EditBoothModal({ booth, onClose, onSuccess }: { booth: Booth; onClose: 
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
-      const { error } = await supabase.from('booths').update({ booth_number: boothNumber, booth_name: boothName, description }).eq('id', booth.id);
+      const { error } = await Bolt_Database()
+        .from('booths')
+        .update({ booth_number: boothNumber, booth_name: boothName, description })
+        .eq('id', booth.id);
       if (error) throw error;
+
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -278,7 +308,9 @@ function BroadcastModal({ onClose }: { onClose: () => void }) {
     }
 
     try {
-      const { error } = await supabase.from('messages').insert([{ from_user_id: user.id, to_booth_id: null, message }]);
+      const { error } = await Bolt_Database()
+        .from('messages')
+        .insert([{ from_user_id: user.id, to_booth_id: null, message }]);
       if (error) throw error;
       onClose();
     } catch (err: unknown) {
