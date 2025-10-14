@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_Bolt_Database_URL: string;
-  readonly VITE_Bolt_Database_ANON_KEY: string;
+  readonly VITE_Bolt Database_ANON_KEY: string;
 }
 
 interface ImportMeta {
