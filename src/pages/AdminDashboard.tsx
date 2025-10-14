@@ -13,7 +13,7 @@ export default function AdminDashboard() {
   const [showBroadcast, setShowBroadcast] = useState(false);
 
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, user } = useAuth();
 
   useEffect(() => {
     loadBooths();
@@ -21,23 +21,17 @@ export default function AdminDashboard() {
 
     const boothsSubscription = Bolt_Database()
       .channel('booths-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, () => {
-        loadBooths();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'booths' }, loadBooths)
       .subscribe();
 
     const ordersSubscription = Bolt_Database()
       .channel('orders-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        loadNotifications();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, loadNotifications)
       .subscribe();
 
     const productsSubscription = Bolt_Database()
       .channel('products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        loadNotifications();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, loadNotifications)
       .subscribe();
 
     return () => {
@@ -65,14 +59,14 @@ export default function AdminDashboard() {
 
   const loadNotifications = async () => {
     try {
-      const { data: orders, error: ordersError } = await Bolt_Database<{ booth_id: string }>()
+      const { data: orders, error: ordersError } = await Bolt_Database()
         .from('orders')
         .select('booth_id')
         .eq('status', 'pending');
 
       if (ordersError) throw ordersError;
 
-      const { data: products, error: productsError } = await Bolt_Database<{ booth_id: string }>()
+      const { data: products, error: productsError } = await Bolt_Database()
         .from('products')
         .select('booth_id')
         .eq('is_out_of_stock', true);
@@ -185,10 +179,10 @@ export default function AdminDashboard() {
 
       {showAddBooth && <AddBoothModal onClose={() => setShowAddBooth(false)} onSuccess={loadBooths} />}
       {showEditBooth && <EditBoothModal booth={showEditBooth} onClose={() => setShowEditBooth(null)} onSuccess={loadBooths} />}
-      {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} />}
+      {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} user={user} />}
     </div>
   );
 }
 
-// --- Lägg till AddBoothModal, EditBoothModal, BroadcastModal ---
-// Samma som du redan har, bara se till att varje async function har **en try/catch** och inga dubbletter.
+// --- Lägg till modaler ---
+// Här måste du definiera AddBoothModal, EditBoothModal och BroadcastModal i samma fil under AdminDashboard, eller importera dem korrekt från egna filer.
