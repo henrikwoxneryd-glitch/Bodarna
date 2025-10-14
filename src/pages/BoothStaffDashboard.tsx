@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bolt Database } from '../lib/Bolt Database';
+import { Bolt_Database } from '../lib/Bolt Database';
 import { useAuth } from '../lib/auth';
 import { Booth, Product, Message } from '../types/database';
 
@@ -14,7 +14,7 @@ export default function BoothStaffDashboard() {
   useEffect(() => {
     loadBoothData();
 
-    const productsSub = Bolt Database
+    const productsSub = Bolt_Database()
       .channel('staff-products-changes')
       .on(
         'postgres_changes',
@@ -25,7 +25,7 @@ export default function BoothStaffDashboard() {
       )
       .subscribe();
 
-    const messagesSub = Bolt Database
+    const messagesSub = Bolt_Database()
       .channel('staff-messages-changes')
       .on(
         'postgres_changes',
@@ -52,7 +52,7 @@ export default function BoothStaffDashboard() {
     if (!user) return;
 
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('booths')
         .select('*')
         .eq('staff_id', user.id)
@@ -74,7 +74,7 @@ export default function BoothStaffDashboard() {
 
   const loadProducts = async (boothId: string) => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('products')
         .select('*')
         .eq('booth_id', boothId)
@@ -92,7 +92,7 @@ export default function BoothStaffDashboard() {
     if (!id) return;
 
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('messages')
         .select('*')
         .or(`to_booth_id.eq.${id},to_booth_id.is.null`)
@@ -121,7 +121,7 @@ export default function BoothStaffDashboard() {
 
   const markMessageAsRead = async (messageId: string) => {
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('messages')
         .update({ is_read: true })
         .eq('id', messageId);
