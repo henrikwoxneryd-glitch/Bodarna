@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Bolt Database } from '../lib/Bolt Database';
+import { Bolt_Database } from '../lib/Bolt_Database';
 import { useAuth } from '../lib/auth';
 import { Booth, Product, Order, Message } from '../types/database';
 
@@ -22,7 +22,7 @@ export default function BoothDetail() {
     if (boothId) {
       loadBoothData();
 
-      const productsSubscription = Bolt Database
+      const productsSubscription = Bolt_Database()
         .channel('products-booth-changes')
         .on('postgres_changes', {
           event: '*',
@@ -34,7 +34,7 @@ export default function BoothDetail() {
         })
         .subscribe();
 
-      const ordersSubscription = Bolt Database
+      const ordersSubscription = Bolt_Database()
         .channel('orders-booth-changes')
         .on('postgres_changes', {
           event: '*',
@@ -46,7 +46,7 @@ export default function BoothDetail() {
         })
         .subscribe();
 
-      const messagesSubscription = Bolt Database
+      const messagesSubscription = Bolt_Database()
         .channel('messages-booth-changes')
         .on('postgres_changes', {
           event: '*',
@@ -73,7 +73,7 @@ export default function BoothDetail() {
 
   const loadBooth = async () => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('booths')
         .select('*')
         .eq('id', boothId)
@@ -88,7 +88,7 @@ export default function BoothDetail() {
 
   const loadProducts = async () => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('products')
         .select('*')
         .eq('booth_id', boothId)
@@ -103,7 +103,7 @@ export default function BoothDetail() {
 
   const loadOrders = async () => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('orders')
         .select('*, products(name)')
         .eq('booth_id', boothId)
@@ -118,7 +118,7 @@ export default function BoothDetail() {
 
   const loadMessages = async () => {
     try {
-      const { data, error } = await Bolt Database
+      const { data, error } = await Bolt_Database()
         .from('messages')
         .select('*')
         .or(`to_booth_id.eq.${boothId},to_booth_id.is.null`)
@@ -135,7 +135,7 @@ export default function BoothDetail() {
     if (!confirm('Är du säker på att du vill ta bort denna vara?')) return;
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('products')
         .delete()
         .eq('id', productId);
@@ -149,7 +149,7 @@ export default function BoothDetail() {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('orders')
         .update({ status })
         .eq('id', orderId);
@@ -327,7 +327,7 @@ function AddProductModal({ boothId, onClose, onSuccess }: { boothId: string; onC
     setLoading(true);
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('products')
         .insert([{ booth_id: boothId, name, price: parseFloat(price) }]);
 
@@ -394,7 +394,7 @@ function EditProductModal({ product, onClose, onSuccess }: { product: Product; o
     setLoading(true);
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('products')
         .update({ name, price: parseFloat(price) })
         .eq('id', product.id);
@@ -462,7 +462,7 @@ function SendMessageModal({ boothId, onClose }: { boothId: string; onClose: () =
     setLoading(true);
 
     try {
-      const { error } = await Bolt Database
+      const { error } = await Bolt_Database()
         .from('messages')
         .insert([{ from_user_id: user!.id, to_booth_id: boothId, message }]);
 
