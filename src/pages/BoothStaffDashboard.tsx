@@ -16,16 +16,20 @@ export default function BoothStaffDashboard() {
 
     const productsSub = Bolt_Database()
       .channel('staff-products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        if (booth?.id) loadProducts(booth.id);
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => { if (booth?.id) loadProducts(booth.id); }
+      )
       .subscribe();
 
     const messagesSub = Bolt_Database()
       .channel('staff-messages-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-        if (booth?.id) loadMessages(booth.id);
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        () => { if (booth?.id) loadMessages(booth.id); }
+      )
       .subscribe();
 
     return () => {
@@ -44,7 +48,6 @@ export default function BoothStaffDashboard() {
     if (!user) return;
 
     try {
-      // Supabase-typning med <Row, Insert> för korrekt TS
       const { data, error } = await Bolt_Database()
         .from<Booth, Booth>('booths')
         .select('*')
