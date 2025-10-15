@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@supabase/BoltDatabase-js';
-// FIX RAD 3: Ändrade till default import för Bolt_Database och lade till 'supabase'
+// FIX RAD 3: Använder default import för Bolt_Database och lade till 'supabase'
 import Bolt_Database, { supabase } from './BoltDatabase'; 
 import { Profile } from '../types/database';
 
@@ -15,7 +15,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Flyttade loadProfile utanför komponenten för att undvika scope- och declaration-fel.
+// FIX FÖR RAD 50, 57, 62, 98: Flyttade loadProfile utanför komponenten
 const loadProfile = async (userId: string, setProfile: (p: Profile | null) => void, setLoading: (l: boolean) => void) => {
   try {
     const { data, error } = await Bolt_Database
@@ -56,13 +56,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (async () => {
         setUser(session?.user ?? null);
         if (session?.user) {
-          // RAD 57-felet (try expected) bör försvinna nu
+          // RAD 57-felet bör försvinna
           await loadProfile(session.user.id, setProfile, setLoading); 
         } else {
           setProfile(null);
           setLoading(false);
         }
       })();
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); 
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+  };
+
+  const signUp = async (email: string, password: string, fullName: string, role: 'admin' | 'booth_staff') => {
+    const { error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+        },
+      },
+    });
+
+    if (authError) throw authError;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
     });
 
     return () => subscription.unsubscribe();
