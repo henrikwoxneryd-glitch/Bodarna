@@ -1,6 +1,6 @@
 // ✅ Importer
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js'; // 👈 Korrigerad import (inte @supabase/BoltDatabase-js)
+import { User } from, '@supabase/supabase-js'; // 👈 Korrigerad import (inte @supabase/BoltDatabase-js)
 import Bolt_Database, { supabase } from './BoltDatabase';
 import { Profile } from '../types/database';
 
