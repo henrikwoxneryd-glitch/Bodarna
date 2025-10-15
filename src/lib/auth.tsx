@@ -1,9 +1,10 @@
+// ✅ Importer
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/BoltDatabase-js';
-// FIX RAD 3: Använder default import för Bolt_Database och lade till 'supabase'
+import { User } from '@supabase/supabase-js'; // 👈 Korrigerad import (inte @supabase/BoltDatabase-js)
 import Bolt_Database, { supabase } from './BoltDatabase'; 
 import { Profile } from '../types/database';
 
+// ✅ Typdefinitioner
 type AuthContextType = {
   user: User | null;
   profile: Profile | null;
@@ -13,56 +14,143 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ✅ Skapa context med default typ
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-// FIX FÖR RAD 50, 57, 62, 98: Flyttade loadProfile utanför komponenten
-const loadProfile = async (userId: string, setProfile: (p: Profile | null) => void, setLoading: (l: boolean) => void) => {
+// ----------------------------------------------------
+// 🧩 Hjälpfunktion: Hämtar användarens profil
+// ----------------------------------------------------
+const loadProfile = async (
+  userId: string,
+  setProfile: React.Dispatch<React.SetStateAction<Profile | null>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>
+) => {
   try {
     const { data, error } = await Bolt_Database
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .maybeSingle();
+      .maybeSingle<Profile>(); // 👈 Starkare typning
 
     if (error) throw error;
-    setProfile(data as Profile);
+    setProfile(data ?? null);
   } catch (error) {
     console.error('Error loading profile:', error);
+    setProfile(null);
   } finally {
     setLoading(false);
   }
 };
 
-
+// ----------------------------------------------------
+// 🔐 AuthProvider-komponent
+// ----------------------------------------------------
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial inläsning
+    let isMounted = true;
+
+    // 🚀 Initierar session vid start
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+
       setUser(session?.user ?? null);
+
       if (session?.user) {
-        // RAD 49 och 50-felen bör försvinna med renare struktur
-        loadProfile(session.user.id, setProfile, setLoading); 
+        loadProfile(session.user.id, setProfile, setLoading);
       } else {
         setLoading(false);
       }
     });
 
-    // Lyssna på tillståndsförändringar (Auth State Change)
+    // 👂 Lyssna på ändringar i autentiseringsstatus
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          // RAD 57-felet bör försvinna
-          await loadProfile(session.user.id, setProfile, setLoading); 
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      })();
+      if (!isMounted) return;
+
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        loadProfile(session.user.id, setProfile, setLoading);
+      } else {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    // 🧹 Städa upp vid unmount
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // ----------------------------------------------------
+  // ✉️ Sign In
+  // ----------------------------------------------------
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  // ----------------------------------------------------
+  // 🆕 Sign Up
+  // ----------------------------------------------------
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    role: 'admin' | 'booth_staff'
+  ) => {
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, role },
+      },
+    });
+
+    if (authError) throw authError;
+
+    // 👇 Extra skydd: Skapa profil i tabellen om trigger saknas
+    const userId = data.user?.id;
+    if (userId) {
+      const { error: dbError } = await Bolt_Database
+        .from('profiles')
+        .insert({ id: userId, full_name: fullName, role });
+
+      if (dbError) console.error('Profile creation error:', dbError);
+    }
+  };
+
+  // ----------------------------------------------------
+  // 🚪 Sign Out
+  // ----------------------------------------------------
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  // ----------------------------------------------------
+  // 🌐 Provider returnerar context till appen
+  // ----------------------------------------------------
+  return (
+    <AuthContext.Provider
+      value={{ user, profile, loading, signIn, signUp, signOut }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// ----------------------------------------------------
+// 🧠 Hook för att använda AuthContext
+// ----------------------------------------------------
+export function useAuth(): AuthContextType {
+  return useContext(AuthContext);
+}
     });
 
     return () => subscription.unsubscribe();
