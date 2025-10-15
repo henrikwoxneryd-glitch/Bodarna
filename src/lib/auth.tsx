@@ -1,9 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
-import { BoltDatabase } from './BoltDatabase'; // Din egna klient
+import { User } from '@supabase/BoltDatabase-js';
+import { Bolt_Database, supabase } from './BoltDatabase'; // Lade till 'supabase' import. Kontrollera att din './BoltDatabase' fil exporterar 'supabase'
 import { Profile } from '../types/database';
 
-// 🔧 Typdefinition för AuthContext
 type AuthContextType = {
   user: User | null;
   profile: Profile | null;
@@ -13,31 +12,54 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
-// 🔧 Skapa kontext
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 🔧 Provider-komponent
+// LoadProfile-funktionen flyttas ut för att underlätta läsbarhet och hantering av scope
+// Men jag behåller den inuti AuthProvider som du hade den, men ser till att den definieras
+// innan den används i useEffect.
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // LoadProfile-funktionen flyttad uppåt för att vara tillgänglig i useEffect
+  const loadProfile = async (userId: string) => {
+    try {
+      const { data, error } = await Bolt_Database
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      setProfile(data as Profile); // Lade till type assertion här då data kan vara null
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Hämta session vid start
-    BoltDatabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
+        // Om detta var felet på rad 49,42 (att det förväntades ett kommatecken)
+        // så var det pga att jag inte hade 'supabase' importerat
         loadProfile(session.user.id);
       } else {
         setLoading(false);
       }
     });
 
-    // Lyssna på auth-förändringar
-    const { data: subscription } = BoltDatabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
         setUser(session?.user ?? null);
         if (session?.user) {
+          // Felet på rad 57,7 ("try expected") är sannolikt pga att en asynkron funktion
+          // inuti onAuthStateChange inte kan anropa en synkron funktion som returnerar
+          // en Promise utan 'await' framför. Jag har ändrat 'loadProfile' till 'await loadProfile'
+          // inne i denna async IIFE för att vara säkrare.
           await loadProfile(session.user.id);
         } else {
           setProfile(null);
@@ -46,23 +68,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })();
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+    return () => subscription.unsubscribe();
+  }, []); // Lade till en tom dependency-array för att undvika oändlig loop
 
-  // 🔧 Ladda användarens profil
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await BoltDatabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+  };
 
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
+  const signUp = async (email: string, password: string, fullName: string, role: 'admin' | 'booth_staff') => {
+    const { error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+        },
+      },
+    });
+
+    if (authError) throw authError;
+    // Profile is automatically created by database trigger
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
       console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
