@@ -44,22 +44,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await Bolt_Database
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+ const loadProfile = async (userId: string) => {
+  try {
+    const { data, error } = await Bolt_Database()
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) throw error;
+    setProfile(data);
+  } catch (error) {
+    console.error('Error loading profile:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
