@@ -1,12 +1,12 @@
-import { createClient } from '@supabase/Bolt Database-js';
+import { createClient } from '@supabase/Bolt_Database-js';
 
-const Bolt Database_URL = import.meta.env.VITE_Bolt Database_URL;
-const Bolt Database_ANON_KEY = import.meta.env.VITE_Bolt Database_ANON_KEY;
+const Bolt_Database_URL = import.meta.env.VITE_Bolt_Database_URL;
+const Bolt_Database_ANON_KEY = import.meta.env.VITE_Bolt_Database_ANON_KEY;
 
-if (!Bolt Database_URL || !Bolt Database_ANON_KEY) {
-  throw new Error('Missing Bolt Database environment variables. Check your .env file.');
+if (!Bolt_Database_URL || !Bolt Database_ANON_KEY) {
+  throw new Error('Missing Bolt_Database environment variables. Check your .env file.');
 }
 
-export const Bolt_Database = createClient(Bolt Database_URL, Bolt Database_ANON_KEY);
+export const Bolt_Database = createClient(Bolt_Database_URL, Bolt_Database_ANON_KEY);
 
-export type { User, Session } from '@supabase/Bolt Database-js';
+export type { User, Session } from '@supabase/Bolt_Database-js';
