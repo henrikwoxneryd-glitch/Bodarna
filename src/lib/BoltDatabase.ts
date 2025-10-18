@@ -1,16 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/Bolt Database-js';
 
-// 🔐 Läs miljövariabler från Vite (.env)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const Bolt Database_URL = import.meta.env.VITE_Bolt Database_URL;
+const Bolt Database_ANON_KEY = import.meta.env.VITE_Bolt Database_ANON_KEY;
 
-// 🚨 Säkerhetskontroll — stoppa om något saknas
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('❌ Missing Supabase environment variables. Check your .env file.');
+if (!Bolt Database_URL || !Bolt Database_ANON_KEY) {
+  throw new Error('Missing Bolt Database environment variables. Check your .env file.');
 }
 
-// ⚙️ Skapa en *enda* Supabase-klientinstans
-export const Bolt_Database = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const Bolt_Database = createClient(Bolt Database_URL, Bolt Database_ANON_KEY);
 
-// ✅ (Valfritt) Exportera typer direkt för enklare import i resten av appen
-export type { User, Session } from '@supabase/supabase-js';
+export type { User, Session } from '@supabase/Bolt Database-js';
