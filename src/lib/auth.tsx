@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
-import BoltDatabase from './BoltDatabase';
+import { User } from '@supabase/Bolt Database-js';
+import { Bolt Database } from './Bolt Database';
 import { Profile } from '../types/database';
 
 type AuthContextType = {
@@ -44,23 +44,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
- const loadProfile = async (userId: string) => {
-  try {
-    const { data, error } = await Bolt_Database()
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+  const loadProfile = async (userId: string) => {
+    try {
+      const { data, error } = await Bolt Database
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error) throw error;
-    setProfile(data);
-  } catch (error) {
-    console.error('Error loading profile:', error);
-  } finally {
-    setLoading(false);
-  }
-};
-
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -83,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (authError) throw authError;
+    // Profile is automatically created by database trigger
   };
 
   const signOut = async () => {
