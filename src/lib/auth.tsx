@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/Bolt Database-js';
-import { Bolt Database } from './Bolt Database';
+import { User } from '@supabase/supabase-js';
+import { Bolt_Database } from './BoltDatabase';
 import { Profile } from '../types/database';
 
 type AuthContextType = {
@@ -19,17 +19,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Ladda session och profil vid mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const init = async () => {
+      const { data: { session }, error } = await Bolt_Database.auth.getSession();
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadProfile(session.user.id);
+        await loadProfile(session.user.id);
       } else {
         setLoading(false);
       }
-    });
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    init();
+
+    const { data: { subscription } } = Bolt_Database.auth.onAuthStateChange((_event, session) => {
       (async () => {
         setUser(session?.user ?? null);
         if (session?.user) {
@@ -46,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     try {
-      const { data, error } = await Bolt Database
-        .from('profiles')
+      const { data, error } = await Bolt_Database
+        .from<Profile>('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
@@ -62,30 +72,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await Bolt_Database.auth.signInWithPassword({ email, password });
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: 'admin' | 'booth_staff') => {
-    const { error: authError } = await supabase.auth.signUp({
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    role: 'admin' | 'booth_staff'
+  ) => {
+    const { error } = await Bolt_Database.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          full_name: fullName,
-          role: role,
-        },
+        data: { full_name: fullName, role },
       },
     });
 
-    if (authError) throw authError;
+    if (error) throw error;
+    // Profilen skapas automatiskt av databas-trigger
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await Bolt_Database.auth.signOut();
     if (error) throw error;
   };
 
@@ -98,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
