@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/BoltDatabase-js';
-import { BoltDatabase } from './BoltDatabase';
+import { User } from '@supabase/Bolt Database-js';
+import { Bolt_Database } from './Bolt Database';
 import { Profile } from '../types/database';
 
 type AuthContextType = {
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     try {
-      const { data, error } = await Bolt_Database()
+      const { data, error } = await Bolt_Database
         .from('profiles')
         .select('*')
         .eq('id', userId)
