@@ -1,4 +1,4 @@
-import react, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@supabase/Bolt Database-js';
 import { Bolt_Database } from './Bolt Database';
 import { Profile } from '../types/database';
