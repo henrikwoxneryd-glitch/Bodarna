@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     try {
-      const { data, error } = await Bolt_Database
+      const { data, error } = await Bolt Database
         .from('profiles')
         .select('*')
         .eq('id', userId)
