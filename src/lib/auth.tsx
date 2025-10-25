@@ -29,7 +29,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: { subscription } } = Bolt_Database().auth.onAuthStateChange((_event, session: Session | null) => {
+    interface AuthSubscription {
+      unsubscribe: () => void;
+    }
+
+    interface AuthOnAuthStateChangeResult {
+      data: {
+        subscription: AuthSubscription;
+      };
+    }
+
+    const { data: { subscription } }: AuthOnAuthStateChangeResult = Bolt_Database().auth.onAuthStateChange((_event: string, session: Session | null) => {
       (async () => {
         setUser(session?.user ?? null);
         if (session?.user) {
@@ -41,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => subscription?.unsubscribe();
   }, []);
 
   const loadProfile = async (userId: string) => {
