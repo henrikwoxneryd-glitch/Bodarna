@@ -9,5 +9,5 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// Exportera en funktion som returnerar en Supabase-klient
-export const Bolt_Database = () => createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Skapa och exportera en enda Supabase-klient
+export const Bolt_Database = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
