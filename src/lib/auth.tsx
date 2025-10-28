@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Bolt_Database().auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+    Bolt_Database.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    const { data: { subscription } }: AuthOnAuthStateChangeResult = Bolt_Database().auth.onAuthStateChange((_event: string, session: Session | null) => {
+    const { data: { subscription } }: AuthOnAuthStateChangeResult = Bolt_Database.auth.onAuthStateChange((_event: string, session: Session | null) => {
       (async () => {
         setUser(session?.user ?? null);
         if (session?.user) {
@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string) => {
     try {
-      const { data, error } = await Bolt_Database()
+      const { data, error } = await Bolt_Database
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await Bolt_Database().auth.signInWithPassword({
+    const { error } = await Bolt_Database.auth.signInWithPassword({
       email,
       password,
     });
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName: string, role: 'admin' | 'booth_staff') => {
-    const { error: authError } = await Bolt_Database().auth.signUp({
+    const { error: authError } = await Bolt_Database.auth.signUp({
       email,
       password,
       options: {
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await Bolt_Database().auth.signOut();
+    const { error } = await Bolt_Database.auth.signOut();
     if (error) throw error;
   };
 
